@@ -202,3 +202,5 @@ If a command fails to execute, its output variable in the template will be grace
 ## License
 
 [MIT License](LICENSE)
+
+---

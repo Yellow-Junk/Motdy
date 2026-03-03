@@ -199,7 +199,9 @@ func run(args []string) error {
 func promptOverwrite(filePath string) bool {
 	fmt.Printf("File %s already exists. Overwrite? [y/N]: ", filePath)
 	var response string
-	fmt.Scanln(&response)
+	if _, err := fmt.Scanln(&response); err != nil {
+		return false
+	}
 	response = strings.ToLower(strings.TrimSpace(response))
 	return response == "y" || response == "yes"
 }
@@ -242,7 +244,7 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer source.Close()
+	defer func() { _ = source.Close() }()
 
 	// Create destination directory if it doesn't exist
 	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
@@ -253,7 +255,7 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer destination.Close()
+	defer func() { _ = destination.Close() }()
 
 	if _, err := io.Copy(destination, source); err != nil {
 		return err

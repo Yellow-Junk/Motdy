@@ -1,0 +1,31 @@
+===========================================================================
+                      Welcome to {{.Hostname}}!
+===========================================================================
+
+  Date:          {{.Date}}
+  Time:          {{.Time}}
+  OS Release:    {{.OSRelease}}
+  Kernel:        {{.Kernel}}
+  Uptime:        {{.Uptime}}
+
+  -- Network Information --------------------------------------------------
+  Private IP:    {{.PrivateIp}}
+  Public IP:     {{.PublicIp}}
+
+  -- System Status --------------------------------------------------------
+  Load Average:  {{.LoadAvg}}
+  Memory Usage:  {{.MemoryUsage}}
+  Disk Usage:    {{.DiskUsage}}
+  Logged in:     {{.LoggedInUsers}} users
+
+  -- Application Status ---------------------------------------------------
+  Running Containers: {{.Containers}}
+  Updates:            {{.UpdatesAvailable}}
+
+  -- Daily Focus ----------------------------------------------------------
+  {{.DailyTask}}{{if .UpdateCommand}}
+  Updates Command: {{.UpdateCommand}}{{end}}
+
+===========================================================================
+  "Good luck!"
+===========================================================================

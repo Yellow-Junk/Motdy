@@ -319,15 +319,65 @@ func runInstall(binPath, configPath, templatePath, schedule string, force bool) 
 
 		defaultConfigContent := fmt.Sprintf(`{
   "template": "%s",
-  "output": "/tmp/motdy_output.txt",
+  "output": "~/.motdy.txt",
   "commands": {
-    "hostname": "hostname",
-    "uptime": "uptime -p",
-    "date": "date '+%%Y-%%m-%%d %%H:%%M:%%S'",
-    "kernel": "uname -r"
+    "Hostname": "hostname -f",
+    "PrivateIp": "ip -o addr show scope global | awk '$2 != \"lo\" {sub(/\\/.*/, \"\", $4); out=out $2\": \"$4\", \"} END {sub(/, $/, \"\", out); print out}'",
+    "PublicIp": "curl api.ipify.org",
+    "OSRelease": "cat /etc/os-release | grep '^PRETTY_NAME=' | cut -d'=' -f2 | tr -d '\"'",
+    "Kernel": "uname -r",
+    "Uptime": "uptime -p | sed 's/up //'",
+    "Date": "date '+%%A, %%B %%d, %%Y'",
+    "Time": "date '+%%H:%%M:%%S %%Z'",
+    "LoadAvg": "awk '{print $1, $2, $3}' /proc/loadavg",
+    "MemoryUsage": "free -m | awk 'NR==2{printf \"%%.2f%%%% (%%.2fGB / %%.2fGB)\", $3*100/$2, $3/1024, $2/1024}'",
+    "DiskUsage": "df -h / | awk '$NF==\"/\"{printf \"%%s / %%s (%%s)\", $3, $2, $5}'",
+    "LoggedInUsers": "who | wc -l",
+    "RandomQuote": "curl -s https://api.quotable.io/quotes/random 2>/dev/null | jq -r '.[0].content' || echo 'Stay positive!'"
   },
-  "weekday_commands": {},
-  "dynamic_commands": {}
+  "dynamic_commands": {
+    "UpdatesAvailable": {
+      "switch_cmd": "grep '^ID=' /etc/os-release | cut -d'=' -f2 | tr -d '\"'",
+      "cases": {
+        "ubuntu": "apt-get -s upgrade 2>/dev/null | grep -P '^\\d+ upgraded' || echo '0'",
+        "debian": "apt-get -s upgrade 2>/dev/null | grep -P '^\\d+ upgraded' || echo '0'",
+        "fedora": "dnf check-update -q | grep -v '^$' | wc -l || echo '0'"
+      },
+      "default": "echo 'Unknown'"
+    },
+    "Containers": {
+      "switch_cmd": "if command -v podman >/dev/null 2>&1; then echo podman; elif command -v docker >/dev/null 2>&1; then echo docker; else echo none; fi",
+      "cases": {
+        "podman": "podman ps -q 2>/dev/null | wc -l",
+        "docker": "docker ps -q 2>/dev/null | wc -l"
+      },
+      "default": "echo 'No container engine running'"
+    }
+  },
+  "weekday_commands": {
+    "Monday": {
+      "DailyTask": "echo 'Time to review weekly goals!'"
+    },
+    "Tuesday": {
+      "DailyTask": "echo 'Run database backups today.'"
+    },
+    "Wednesday": {
+      "DailyTask": "echo 'Remember to update Neovim plugins!'",
+      "UpdateCommand": "echo 'nvim --headless \"+Lazy! sync\" +qa'"
+    },
+    "Thursday": {
+      "DailyTask": "echo 'Check error logs and monitoring dashboards.'"
+    },
+    "Friday": {
+      "DailyTask": "echo 'Merge outstanding pull requests before the weekend!'"
+    },
+    "Saturday": {
+      "DailyTask": "echo 'Enjoy the weekend!'"
+    },
+    "Sunday": {
+      "DailyTask": "echo 'Prepare for the upcoming week.'"
+    }
+  }
 }`, expandedTemplate)
 
 		if err := os.WriteFile(expandedConfig, []byte(defaultConfigContent), 0644); err != nil {
@@ -344,13 +394,37 @@ func runInstall(binPath, configPath, templatePath, schedule string, force bool) 
 			return fmt.Errorf("failed to create template directory: %v", err)
 		}
 
-		defaultTemplateContent := `=========================================
-System Information:
-  Hostname: {{.hostname}}
-  Kernel:   {{.kernel}}
-  Uptime:   {{.uptime}}
-  Date:     {{.date}}
-=========================================
+		defaultTemplateContent := `===========================================================================
+                      Welcome to {{.Hostname}}!
+===========================================================================
+
+  Date:          {{.Date}}
+  Time:          {{.Time}}
+  OS Release:    {{.OSRelease}}
+  Kernel:        {{.Kernel}}
+  Uptime:        {{.Uptime}}
+
+  -- Network Information --------------------------------------------------
+  Private IP:    {{.PrivateIp}}
+  Public IP:     {{.PublicIp}}
+
+  -- System Status --------------------------------------------------------
+  Load Average:  {{.LoadAvg}}
+  Memory Usage:  {{.MemoryUsage}}
+  Disk Usage:    {{.DiskUsage}}
+  Logged in:     {{.LoggedInUsers}} users
+
+  -- Application Status ---------------------------------------------------
+  Running Containers: {{.Containers}}
+  Updates:            {{.UpdatesAvailable}}
+
+  -- Daily Focus ----------------------------------------------------------
+  {{.DailyTask}}{{if .UpdateCommand}}
+  Updates Command: {{.UpdateCommand}}{{end}}
+
+===========================================================================
+  "Good luck!"
+===========================================================================
 `
 		if err := os.WriteFile(expandedTemplate, []byte(defaultTemplateContent), 0644); err != nil {
 			return fmt.Errorf("failed to write default template: %v", err)

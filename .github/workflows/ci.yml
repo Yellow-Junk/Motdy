@@ -31,18 +31,3 @@ jobs:
 
     - name: Test
       run: go test -v -cover ./...
-
-    - name: Build Linux amd64
-      run: GOOS=linux GOARCH=amd64 go build -o motdy-linux-amd64 .
-
-    - name: Build Linux arm64
-      run: GOOS=linux GOARCH=arm64 go build -o motdy-linux-arm64 .
-
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: motdy-binaries
-        path: |
-          motdy-linux-amd64
-          motdy-linux-arm64
-        retention-days: 7

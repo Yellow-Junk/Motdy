@@ -1,6 +1,6 @@
 # Motdy
 
-Motdy is a lightweight, and zero-dependency Go application that generates a dynamic Message of the Day (MOTD) for Linux systems. It allows you to configure shell commands or scripts, execute them, and use their output as variables within a Go text template to generate your final MOTD file. 
+Motdy is a lightweight, and zero-dependency Go application that generates a dynamic Message of the Day (MOTD) for Linux systems. It allows you to configure shell commands or scripts, execute them, and use their output as variables within a Go text template to generate your final MOTD file.
 
 My main reason for it was to have an easy way to remind myself for certain commands I should run, since I mostly forget to update plugins, packages, etc. So I wanted something that would show me (in my face) commands I should run without me having to remember A) the command itself and B) to update things.
 
@@ -15,17 +15,38 @@ It's nothing special, there are probably easier and handier ways to do this but 
 
 ## Installation & Compilation
 
-You can compile Motdy from source using Go. It is recommended to build it as a statically linked binary.
+You can compile Motdy from source using Go. It is recommended to build it as a statically linked binary. It also supports compiling with versioning information.
 
 ```bash
 # Initialize the Go module
 go mod init motdy
 
-# Build the static binary
-CGO_ENABLED=0 go build -ldflags="-s -w" -o motdy main.go
+# Set version variables
+VERSION="v0.2.0"
+BUILD_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "None / build outside repository")
+
+# Build the static binary with versioning
+CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=$VERSION -X main.BuildTime=$BUILD_TIME -X 'main.GitCommit=$GIT_COMMIT'" -o motdy main.go
 ```
 
-After compiling, move the `motdy` binary to a suitable location in your PATH, such as `/usr/local/bin/`.
+Motdy includes a built-in installation feature that will copy the binary, create default configuration files, and set up a cron job for you. 
+
+```bash
+# Run the built-in installer
+./motdy --install
+```
+
+By default, the installer will:
+
+1. Copy the binary to `~/.local/bin/motdy`
+2. Create a default config at `~/.config/motdy/config.json`
+3. Create a default template at `~/.config/motdy/template.txt`
+4. Add an `@hourly` cron job to your user's crontab
+
+You can customize the installation using command line flags (see the Command Line Arguments section).
+
+Alternatively, you can manually move the `motdy` binary to a suitable location in your PATH, such as `/usr/local/bin/`.
 
 ```bash
 sudo mv motdy /usr/local/bin/
@@ -34,10 +55,16 @@ sudo chmod +x /usr/local/bin/motdy
 
 ## Configuration
 
-The application expects its configuration file to be located at `/etc/motdy/config.json`. You will need to create this directory and file.
+The application searches for its configuration file in the following order:
+
+1. Path specified by the `MOTDY_CONFIG` environment variable (if set).
+2. User-specific configuration at `~/.config/motdy/config.json`.
+3. System-wide configuration at `/etc/motdy/config.json`.
+
+You will need to create this directory and file. If you used the `--install` flag, a default configuration has already been created at `~/.config/motdy/config.json`.
 
 ```bash
-sudo mkdir -p /etc/motdy
+mkdir -p ~/.config/motdy
 ```
 
 ### `config.json`
@@ -135,9 +162,16 @@ You can override the default paths using command line arguments or environment v
 
 | Flag | Environment Variable | Default | Description |
 | --- | --- | --- | --- |
-| `-config` | `MOTDY_CONFIG` | `/etc/motdy/config.json` | Path to the JSON configuration file. |
+| `-config` | `MOTDY_CONFIG` | Auto-detected | Path to the JSON configuration file. |
 | `-template` | `MOTDY_TEMPLATE` | (from config) | Override the template path defined in the config. |
 | `-output` | `MOTDY_OUTPUT` | (from config) | Override the output path defined in the config. |
+| `-install` | - | `false` | Install motdy, default config, template, and setup cron job. |
+| `-install-bin` | - | `~/.local/bin/motdy` | Path to install the binary. |
+| `-install-config` | - | `~/.config/motdy/config.json` | Path to install the default config. |
+| `-install-template` | - | `~/.config/motdy/template.txt` | Path to install the default template. |
+| `-schedule` | - | `@hourly` | Cron schedule expression for motdy. |
+| `-force` | - | `false` | Force overwrite of existing files during installation. |
+| `-version` | - | `false` | Print version information and exit. |
 
 **Example using flags:**
 
